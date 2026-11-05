@@ -39,7 +39,8 @@ jobs:
           repo init -u https://github.com/LineageOS/android.git -b lineage-24.0 --git-lfs --depth=1
           
           echo "LineageOSのソースコードを同期中（時間がかかります）..."
-          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --depth=1 -j8
+          # repo sync から --depth=1 を削除しました
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune -j8
           
           # Andreyka445氏の設計図をクローン
           git clone https://github.com/Andreyka445/device_nothing_Galaxian -b lineage-24.0 device/nothing/Galaxian
