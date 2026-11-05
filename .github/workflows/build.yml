@@ -27,14 +27,14 @@ jobs:
       - name: Install Repo Tool
         run: |
           mkdir -p ~/bin
-          curl https://googleapis.com > ~/bin/repo
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
 
       - name: Clone LineageOS & Galaxian Tree
         run: |
           export PATH=~/bin:$PATH
           mkdir -p lineage && cd lineage
-          repo init -u https://github.com -b lineage-24.0 --git-lfs --depth=1
+          repo init -u https://github.com/LineageOS/android.git -b lineage-24.0 --git-lfs --depth=1
           
           # Andreyka445氏の設計図をクローン
           git clone https://github.com/Andreyka445/device_nothing_Galaxian -b lineage-24.0 device/nothing/Galaxian
@@ -43,7 +43,7 @@ jobs:
         run: |
           mkdir -p ~/ota_解体所
           cd ~/ota_解体所
-          echo "Nothing Archiveから5GBのフルファームウェアを爆速ダウンロード中..."
+          echo "Nothing Archiveから5GBのフルファームウェアをダウンロード中..."
           curl -L -o Galaxian_FullOTA.zip "https://archive.org/download/nothing-archive/spike0en/fullota/galaxian/Galaxian_B4.1-260819-1839.zip"
           echo "解凍中..."
           unzip Galaxian_FullOTA.zip payload.bin
@@ -54,18 +54,14 @@ jobs:
           mkdir -p ~/extracted_images
           python3 -m payload_dumper ~/ota_解体所/payload.bin --out ~/extracted_images
           
-          # 抽出した各システムイメージをマウントするための準備
           mkdir -p lineage/android_dump
-
-      - name: Execute Extract Script (Auto-Generate Vendor Tree)
-        run: |
-          cd lineage
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          cp -r ~/extracted_images/* lineage/android_dump/
 
       - name: Build Vendor Boot & Boot Image
         run: |
           export PATH=~/bin:$PATH
           cd lineage
+          export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
           lunch lineage_Galaxian-userdebug
           mka vendor_bootimage bootimage
