@@ -54,7 +54,8 @@ jobs:
         run: |
           pip3 install payload-dumper
           mkdir -p ~/extracted_images
-          python3 -m payload_dumper ~/ota_解体所/payload.bin --out ~/extracted_images
+          # python3 -m を外して直接コマンドを実行するように修正
+          payload_dumper ~/ota_解体所/payload.bin --out ~/extracted_images
           
           mkdir -p lineage/android_dump
           cp -r ~/extracted_images/* lineage/android_dump/
