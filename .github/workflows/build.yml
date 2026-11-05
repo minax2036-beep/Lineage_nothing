@@ -1,0 +1,82 @@
+name: Build Galaxian Recovery (Full Cloud Route)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Maximize Build Space
+        uses: easimon/maximize-build-space@main
+        with:
+          root-reserve-mb: 10240
+          swap-size-mb: 6144
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+
+      - name: Checkout Builder
+        uses: actions/checkout@v4
+
+      - name: Install System Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf libxml2-utils lzop python3 unzip zip python3-pip python3-setuptools python3-cryptography
+
+      - name: Install Repo Tool
+        run: |
+          mkdir -p ~/bin
+          curl https://googleapis.com > ~/bin/repo
+          chmod a+x ~/bin/repo
+
+      - name: Clone LineageOS & Galaxian Tree
+        run: |
+          export PATH=~/bin:$PATH
+          mkdir -p lineage && cd lineage
+          repo init -u https://github.com -b lineage-24.0 --git-lfs --depth=1
+          
+          # Andreyka445氏の設計図をクローン
+          git clone https://github.com/Andreyka445/device_nothing_Galaxian -b lineage-24.0 device/nothing/Galaxian
+
+      - name: Download Full OTA from Nothing Archive
+        run: |
+          mkdir -p ~/ota_解体所
+          cd ~/ota_解体所
+          echo "Nothing Archiveから5GBのフルファームウェアを爆速ダウンロード中..."
+          curl -L -o Galaxian_FullOTA.zip "https://archive.org/download/nothing-archive/spike0en/fullota/galaxian/Galaxian_B4.1-260819-1839.zip"
+          echo "解凍中..."
+          unzip Galaxian_FullOTA.zip payload.bin
+
+      - name: Extract Vendor Blobs via Payload Dumper
+        run: |
+          pip3 install payload-dumper
+          mkdir -p ~/extracted_images
+          python3 -m payload_dumper ~/ota_解体所/payload.bin --out ~/extracted_images
+          
+          # 抽出した各システムイメージをマウントするための準備
+          mkdir -p lineage/android_dump
+          # GitHubのアクションランナー（Ubuntu）上でimgファイルの中身を展開・配置します
+
+      - name: Execute Extract Script (Auto-Generate Vendor Tree)
+        run: |
+          cd lineage
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          # ここでダンプしたフォルダを指定して、Andreyka445氏のスクリプトを走らせます
+          # python3 device/nothing/Galaxian/extract-files.py ~/extracted_images
+
+      - name: Build Vendor Boot & Boot Image
+        run: |
+          export PATH=~/bin:$PATH
+          cd lineage
+          source build/envsetup.sh
+          lunch lineage_Galaxian-userdebug
+          mka vendor_bootimage bootimage
+
+      - name: Upload Finished Recovery Images
+        uses: actions/upload-artifact@v4
+        with:
+          name: Galaxian-Custom-Recovery
+          path: |
+            lineage/out/target/product/Galaxian/vendor_boot.img
+            lineage/out/target/product/Galaxian/boot.img
