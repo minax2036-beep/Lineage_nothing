@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Maximize Build Space
-        uses: easimon/maximize-build-space@main
+        uses: easimon/maximize-build-space@v1.0.12
         with:
           root-reserve-mb: 10240
           swap-size-mb: 6144
@@ -56,14 +56,11 @@ jobs:
           
           # 抽出した各システムイメージをマウントするための準備
           mkdir -p lineage/android_dump
-          # GitHubのアクションランナー（Ubuntu）上でimgファイルの中身を展開・配置します
 
       - name: Execute Extract Script (Auto-Generate Vendor Tree)
         run: |
           cd lineage
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          # ここでダンプしたフォルダを指定して、Andreyka445氏のスクリプトを走らせます
-          # python3 device/nothing/Galaxian/extract-files.py ~/extracted_images
 
       - name: Build Vendor Boot & Boot Image
         run: |
