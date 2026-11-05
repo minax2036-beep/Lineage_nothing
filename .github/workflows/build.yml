@@ -38,6 +38,9 @@ jobs:
           mkdir -p lineage && cd lineage
           repo init -u https://github.com/LineageOS/android.git -b lineage-24.0 --git-lfs --depth=1
           
+          echo "LineageOSのソースコードを同期中（時間がかかります）..."
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --depth=1 -j8
+          
           # Andreyka445氏の設計図をクローン
           git clone https://github.com/Andreyka445/device_nothing_Galaxian -b lineage-24.0 device/nothing/Galaxian
 
@@ -54,7 +57,6 @@ jobs:
         run: |
           pip3 install payload-dumper
           mkdir -p ~/extracted_images
-          # python3 -m を外して直接コマンドを実行するように修正
           payload_dumper ~/ota_解体所/payload.bin --out ~/extracted_images
           
           mkdir -p lineage/android_dump
