@@ -294,7 +294,7 @@ def process_image(image_path: Path, image_root: Path, unpacker: Path) -> dict[st
                 "root": str(root_dir.relative_to(image_root.parent)),
                 "manifest": manifest,
             })
-        except ToolError as exc:
+        except Exception as exc:
             result["ramdisks"].append({
                 "file": str(ramdisk.relative_to(image_root.parent)),
                 "status": "kept_unpacked_blob",
