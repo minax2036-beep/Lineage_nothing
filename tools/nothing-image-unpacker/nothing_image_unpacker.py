@@ -276,13 +276,18 @@ def find_recovery_ramdisk_files(unpacked_dir: Path, image_info: str) -> list[Pat
         if "recovery" in path.name.lower():
             selected.add(path)
 
-    for line in image_info.splitlines():
-        match = re.search(
-            r"vendor ramdisk\s+(\d+):.*?(?:type=RECOVERY|name=recovery)",
-            line,
-            re.IGNORECASE,
-        )
-        if match:
+    # AOSP prints each vendor ramdisk entry as a multi-line block, e.g.
+    # vendor_ramdisk01: { ... type: 0x2 ... name: recovery ... }.
+    # Parse the whole block rather than expecting type/name on the header line.
+    for match in re.finditer(
+        r"vendor_ramdisk(\d+):\s*\{(.*?)\n\s*\}",
+        image_info,
+        re.IGNORECASE | re.DOTALL,
+    ):
+        block = match.group(2)
+        type_match = re.search(r"\btype:\s*0x([0-9a-f]+)", block, re.IGNORECASE)
+        name_match = re.search(r"\bname:\s*recovery\b", block, re.IGNORECASE)
+        if name_match or (type_match and int(type_match.group(1), 16) == 2):
             index = int(match.group(1))
             for path in candidates:
                 if path.name.lower() in {f"vendor_ramdisk{index:02d}", f"vendor_ramdisk{index}"}:
