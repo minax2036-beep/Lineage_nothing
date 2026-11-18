@@ -263,7 +263,7 @@ def find_ramdisk_files(unpacked_dir: Path) -> list[Path]:
     for path in unpacked_dir.rglob("*"):
         if path.is_file() and not path.is_symlink():
             name = path.name.lower()
-            if name in {"ramdisk", "vendor_ramdisk"} or name.startswith("ramdisk_"):
+            if name in {"ramdisk", "vendor_ramdisk"} or name.startswith(("ramdisk_", "vendor_ramdisk")):
                 found.append(path)
     return sorted(found)
 
@@ -278,7 +278,7 @@ def find_recovery_ramdisk_files(unpacked_dir: Path, image_info: str) -> list[Pat
 
     for line in image_info.splitlines():
         match = re.search(
-            r"vendor ramdisk\\s+(\\d+):.*?(?:type=RECOVERY|name=recovery)",
+            r"vendor ramdisk\s+(\d+):.*?(?:type=RECOVERY|name=recovery)",
             line,
             re.IGNORECASE,
         )
@@ -346,6 +346,20 @@ def process_image(
                 "status": "kept_unpacked_blob",
                 "note": str(exc),
             })
+
+    if recovery_only:
+        keep = {target_dir / "image-info.txt", *ramdisk_files}
+        for entry in result["ramdisks"]:
+            root_value = entry.get("root")
+            if root_value:
+                keep.add(image_root.parent / root_value)
+        for child in list(target_dir.iterdir()):
+            if child in keep:
+                continue
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink(missing_ok=True)
     return result
 
 
