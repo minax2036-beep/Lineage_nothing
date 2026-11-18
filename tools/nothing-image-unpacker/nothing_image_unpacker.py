@@ -150,12 +150,25 @@ def decompress_ramdisk(data: bytes) -> tuple[bytes, str]:
         except ImportError as exc:
             raise ToolError("zstd Ramdiskです。requirements.txt の依存関係をインストールしてください。") from exc
         return zstandard.ZstdDecompressor().decompress(data), "zstd"
-    if data.startswith((b"\x04\x22\x4d\x18", b"\x02\x21\x4c\x18")):
-        try:
-            import lz4.frame  # type: ignore
-        except ImportError as exc:
-            raise ToolError("lz4 Ramdiskです。requirements.txt の依存関係をインストールしてください。") from exc
-        return lz4.frame.decompress(data), "lz4"
+    if data.startswith((b"\\x04\\x22\\x4d\\x18", b"\\x02\\x21\\x4c\\x18")):
+        # Modern frames use the Python module; legacy Android frames use the CLI.
+        if data.startswith(b"\\x04\\x22\\x4d\\x18"):
+            try:
+                import lz4.frame  # type: ignore
+                return lz4.frame.decompress(data), "lz4 frame"
+            except Exception:
+                pass
+        lz4_binary = shutil.which("lz4")
+        if not lz4_binary:
+            raise ToolError("Legacy LZ4の展開には lz4 コマンドが必要です。")
+        with tempfile.TemporaryDirectory(prefix="ramdisk-lz4-") as temp_dir:
+            source = Path(temp_dir) / "ramdisk.lz4"
+            target = Path(temp_dir) / "ramdisk.cpio"
+            source.write_bytes(data)
+            run_checked([lz4_binary, "-d", "-f", str(source), str(target)])
+            if not target.is_file():
+                raise ToolError("lz4コマンドが展開ファイルを生成しませんでした。")
+            return target.read_bytes(), "lz4 legacy"
     raise ToolError(f"未対応のRamdisk圧縮形式です (先頭: {data[:8].hex()})")
 
 
@@ -255,7 +268,31 @@ def find_ramdisk_files(unpacked_dir: Path) -> list[Path]:
     return sorted(found)
 
 
-def process_image(image_path: Path, image_root: Path, unpacker: Path) -> dict[str, Any]:
+def find_recovery_ramdisk_files(unpacked_dir: Path, image_info: str) -> list[Path]:
+    candidates = find_ramdisk_files(unpacked_dir)
+    selected: set[Path] = set()
+
+    for path in candidates:
+        if "recovery" in path.name.lower():
+            selected.add(path)
+
+    for line in image_info.splitlines():
+        match = re.search(
+            r"vendor ramdisk\\s+(\\d+):.*?(?:type=RECOVERY|name=recovery)",
+            line,
+            re.IGNORECASE,
+        )
+        if match:
+            index = int(match.group(1))
+            for path in candidates:
+                if path.name.lower() in {f"vendor_ramdisk{index:02d}", f"vendor_ramdisk{index}"}:
+                    selected.add(path)
+    return sorted(selected)
+
+
+def process_image(
+    image_path: Path, image_root: Path, unpacker: Path, recovery_only: bool = False
+) -> dict[str, Any]:
     relative = image_path.relative_to(image_root)
     partition_name = re.sub(r"[^A-Za-z0-9._-]+", "_", image_path.stem)
     target_dir = image_root.parent / "unpacked" / partition_name
@@ -280,8 +317,17 @@ def process_image(image_path: Path, image_root: Path, unpacker: Path) -> dict[st
     (target_dir / "image-info.txt").write_text(unpack_result.stdout, encoding="utf-8")
     result["status"] = "unpacked"
     result["ramdisks"] = []
+    image_info = unpack_result.stdout
+    ramdisk_files = (
+        find_recovery_ramdisk_files(target_dir, image_info)
+        if recovery_only else find_ramdisk_files(target_dir)
+    )
+    if recovery_only and not ramdisk_files:
+        result["status"] = "recovery_ramdisk_not_found"
+        result["note"] = "RecoveryタイプのRamdiskを特定できませんでした。image-info.txtを確認してください。"
+        return result
 
-    for ramdisk in find_ramdisk_files(target_dir):
+    for ramdisk in ramdisk_files:
         try:
             raw = ramdisk.read_bytes()
             cpio_data, compression = decompress_ramdisk(raw)
@@ -312,6 +358,8 @@ def main() -> int:
     source.add_argument("--archive", type=Path, help="手元にある .7z ファイル")
     parser.add_argument("--output", type=Path, default=Path("out"), help="出力ディレクトリ (default: out)")
     parser.add_argument("--label", default="firmware", help="出力フォルダ名に使うビルドラベル")
+    parser.add_argument("--recovery-only", action="store_true",
+                        help="vendor_boot.img内のRecoveryタイプRamdiskだけを展開・保存します。")
     args = parser.parse_args()
 
     output_dir = args.output / safe_label(args.label)
@@ -344,8 +392,11 @@ def main() -> int:
         extract_7z(archive_path, extracted)
 
         image_paths = sorted(p for p in extracted.rglob("*.img") if p.is_file() and not p.is_symlink())
+        if args.recovery_only:
+            image_paths = [p for p in image_paths if p.name.lower() == "vendor_boot.img"]
         if not image_paths:
-            raise ToolError("アーカイブ内に .img ファイルが見つかりませんでした。")
+            expected = "vendor_boot.img" if args.recovery_only else ".img"
+            raise ToolError(f"アーカイブ内に必要な {expected} が見つかりませんでした。")
 
         for image in image_paths:
             relative = image.relative_to(extracted)
@@ -356,18 +407,25 @@ def main() -> int:
     images = sorted(p for p in images_dir.rglob("*.img") if p.is_file())
     with tempfile.TemporaryDirectory(prefix="aosp-unpack-tool-") as tool_temp:
         aosp_tool = download_aosp_unpacker(Path(tool_temp) / "unpack_bootimg.py")
-        image_results = [process_image(image, images_dir, aosp_tool) for image in images]
+        image_results = [
+            process_image(image, images_dir, aosp_tool, recovery_only=args.recovery_only)
+            for image in images
+        ]
+
+    if args.recovery_only:
+        shutil.rmtree(images_dir, ignore_errors=True)
 
     summary = {
         "tool": "Nothing Image Unpacker",
-        "version": "0.1.0",
+        "version": "0.2.0",
+        "mode": "recovery-only" if args.recovery_only else "full-image-inspection",
         "device_focus": "Nothing Phone (3a) Lite / Galaxian",
         "download": download_info,
         "image_count": len(images),
         "images": image_results,
         "important_note": (
-            "This extracts image components and ramdisk files; it does not recreate original C/C++ source code. "
-            "Kernel and other compiled binaries remain binaries. No flashing is performed."
+            "Recovery-only mode keeps the Recovery ramdisk, extracted files, image header report, and summary. "
+            "It does not recreate original C/C++ source code. No flashing is performed."
         ),
     }
     (output_dir / "summary.json").write_text(
