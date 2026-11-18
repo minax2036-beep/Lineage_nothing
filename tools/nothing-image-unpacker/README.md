@@ -11,6 +11,8 @@ NothingArchive: https://nothingarchive.tech/docs/firmware
 - AOSP `unpack_bootimg.py`で`ANDROID!` / `VNDRBOOT`形式を展開
 - Kernel、Ramdisk、DTB、bootconfig、ヘッダー情報などを分離
 - 対応形式のRamdiskを展開し、`init*.rc`、`fstab*`、設定ファイルなどを取り出す
+- GitHub ActionsではRecovery専用モードを使い、`vendor_boot.img`内のRecoveryタイプRamdiskだけを保存
+- Legacy LZ4形式（magic `02 21 4c 18`）にも対応
 - SHA-256と処理結果を`summary.json`に記録
 
 ## できないこと
@@ -34,7 +36,7 @@ NothingArchive: https://nothingarchive.tech/docs/firmware
 
 ```bash
 sudo apt update
-sudo apt install -y p7zip-full python3-venv
+sudo apt install -y p7zip-full lz4 python3-venv
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r tools/nothing-image-unpacker/requirements.txt
@@ -43,7 +45,7 @@ python -m pip install -r tools/nothing-image-unpacker/requirements.txt
 NothingArchiveの直接URLから実行:
 
 ```bash
-python tools/nothing-image-unpacker/nothing_image_unpacker.py --archive-url 'https://example.com/firmware-image-boot.7z' --label 'Galaxian-B4.1' --output out
+python tools/nothing-image-unpacker/nothing_image_unpacker.py --archive-url 'https://example.com/firmware-image-boot.7z' --label 'Galaxian-B4.1' --recovery-only --output out
 ```
 
 すでにダウンロード済みの`.7z`を使う場合:
@@ -57,9 +59,8 @@ python tools/nothing-image-unpacker/nothing_image_unpacker.py --archive ./firmwa
 ```text
 out/
 └── Galaxian-B4.1/
-    ├── images/                 # 抽出した元の.img
-    ├── unpacked/
-    │   └── init_boot/
+    ├── unpacked/               # Recovery専用Ramdisk
+    │   └── vendor_boot/
     │       ├── image-info.txt  # AOSPのイメージヘッダー情報
     │       ├── kernel          # 存在する場合はバイナリ
     │       ├── ramdisk         # 圧縮Ramdisk
@@ -67,7 +68,7 @@ out/
     └── summary.json            # SHA-256と抽出結果
 ```
 
-実際のパーティション名や中身はファームウェアのビルドによって異なります。`vendor_boot.img`や`recovery.img`が存在しない場合もあります。
+Recovery専用モードでは`vendor_boot.img`だけを処理し、Recoveryと判定できたRamdiskだけを展開します。判定できない場合は別のRamdiskを推測で採用せず、summary.jsonに理由を記録します。
 
 ## 注意事項
 
