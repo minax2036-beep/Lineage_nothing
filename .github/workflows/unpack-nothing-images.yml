@@ -1,4 +1,4 @@
-name: Unpack Nothing firmware images
+name: Inspect Nothing firmware images
 
 on:
   workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tools/nothing-image-unpacker/requirements.txt
 
-      - name: Download and unpack
+      - name: Download and inspect all images
         env:
           ARCHIVE_URL: ${{ inputs.archive_url }}
           BUILD_LABEL: ${{ inputs.build_label }}
@@ -44,13 +44,12 @@ jobs:
           python tools/nothing-image-unpacker/nothing_image_unpacker.py \
             --archive-url "$ARCHIVE_URL" \
             --label "$BUILD_LABEL" \
-            --recovery-only \
             --output out
 
       - name: Upload extracted files
         uses: actions/upload-artifact@v4
         with:
-          name: nothing-image-unpacked-${{ github.run_number }}
+          name: nothing-image-inspected-${{ github.run_number }}
           path: out/
           if-no-files-found: error
           retention-days: 7
