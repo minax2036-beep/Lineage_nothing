@@ -1,0 +1,55 @@
+name: Unpack Nothing firmware images
+
+on:
+  workflow_dispatch:
+    inputs:
+      archive_url:
+        description: "Direct HTTPS download URL of a NothingArchive .7z image archive"
+        required: true
+        type: string
+      build_label:
+        description: "Build label used for the output folder (for example Galaxian-B4.1)"
+        required: true
+        default: "Galaxian-firmware"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  unpack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full
+          python -m pip install --upgrade pip
+          python -m pip install -r tools/nothing-image-unpacker/requirements.txt
+
+      - name: Download and unpack
+        env:
+          ARCHIVE_URL: ${{ inputs.archive_url }}
+          BUILD_LABEL: ${{ inputs.build_label }}
+        run: |
+          python tools/nothing-image-unpacker/nothing_image_unpacker.py \
+            --archive-url "$ARCHIVE_URL" \
+            --label "$BUILD_LABEL" \
+            --output out
+
+      - name: Upload extracted files
+        uses: actions/upload-artifact@v4
+        with:
+          name: nothing-image-unpacked-${{ github.run_number }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 7
