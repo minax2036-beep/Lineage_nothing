@@ -14,6 +14,17 @@ NothingArchiveのファームウェアイメージアーカイブ（`.7z`）を�
 - `dtbo.img`や`vbmeta*.img`など、AOSP boot imageではないIMGも原本を保存して形式情報を記録
 - SHA-256と処理結果を`summary.json`に記録
 
+## Recovery調査用ファイルの自動収集
+
+通常の全イメージ解析が終わると、GitHub Actionsは展開済みファイルを横断してRecovery / ADB / USB / fstab関連の候補を収集します。
+
+- `init*.rc`、`ueventd*.rc`、`fstab*`などの設定ファイル
+- `adbd` / `minadbd`などのADB実行ファイル
+- USB ConfigFS、Recovery起動条件、ログ関連語を含むテキストファイル
+- 元の配置パスを保ったコピーとSHA-256一覧
+
+追加Artifact `nova-recovery-investigation-...` に、候補ファイルと `recovery-file-report.md` / `recovery-file-report.json` が保存されます。これは名前・内容による候補抽出であり、実行時に必ず読み込まれることを保証するものではありません。
+
 ## できないこと
 
 - IMGから元のC/C++ソースコードを完全復元すること
