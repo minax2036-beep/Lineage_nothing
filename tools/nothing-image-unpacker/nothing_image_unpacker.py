@@ -319,7 +319,7 @@ def inspect_kernel(kernel_path: Path) -> dict[str, Any]:
     with kernel_path.open("rb") as source:
         magic = source.read(4)
 
-    if magic in (b"\\x02\\x21\\x4c\\x18", b"\\x04\\x22\\x4d\\x18"):
+    if magic in (b"\x02\x21\x4c\x18", b"\x04\x22\x4d\x18"):
         lz4_binary = shutil.which("lz4")
         if not lz4_binary:
             result["status"] = "compressed_lz4_not_decoded"
