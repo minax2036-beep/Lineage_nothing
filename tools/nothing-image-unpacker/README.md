@@ -51,7 +51,7 @@ python tools/nothing-image-unpacker/nothing_image_unpacker.py --archive-url 'htt
 すでにダウンロード済みの`.7z`を使う場合:
 
 ```bash
-python tools/nothing-image-unpacker/nothing_image_unpacker.py --archive ./firmware-image-boot.7z --label 'Galaxian-B4.1' --output out
+python tools/nothing-image-unpacker/nothing_image_unpacker.py --archive ./firmware-image-boot.7z --label 'Galaxian-B4.1' --recovery-only --output out
 ```
 
 ## 出力構成
@@ -59,13 +59,12 @@ python tools/nothing-image-unpacker/nothing_image_unpacker.py --archive ./firmwa
 ```text
 out/
 └── Galaxian-B4.1/
-    ├── unpacked/               # Recovery専用Ramdisk
+    ├── unpacked/
     │   └── vendor_boot/
-    │       ├── image-info.txt  # AOSPのイメージヘッダー情報
-    │       ├── kernel          # 存在する場合はバイナリ
-    │       ├── ramdisk         # 圧縮Ramdisk
-    │       └── ramdisk_root/   # 展開できた場合の設定・スクリプト
-    └── summary.json            # SHA-256と抽出結果
+    │       ├── image-info.txt          # AOSPのイメージヘッダー情報
+    │       ├── vendor_ramdisk01        # Recoveryの圧縮Ramdisk（実際の名前はビルド依存）
+    │       └── vendor_ramdisk01_root/  # 展開された設定・スクリプト
+    └── summary.json                   # SHA-256と抽出結果
 ```
 
 Recovery専用モードでは`vendor_boot.img`だけを処理し、Recoveryと判定できたRamdiskだけを展開します。判定できない場合は別のRamdiskを推測で採用せず、summary.jsonに理由を記録します。
