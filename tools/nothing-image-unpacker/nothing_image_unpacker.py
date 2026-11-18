@@ -150,7 +150,7 @@ def decompress_ramdisk(data: bytes) -> tuple[bytes, str]:
         except ImportError as exc:
             raise ToolError("zstd Ramdiskです。requirements.txt の依存関係をインストールしてください。") from exc
         return zstandard.ZstdDecompressor().decompress(data), "zstd"
-    if data.startswith((b"\x04\x22\x4d\x18", b"\x02\\x21\\x4c\x18")):
+    if data.startswith((b"\x04\x22\x4d\x18", b"\x02\x21\x4c\x18")):
         # Modern frames use the Python module; legacy Android frames use the CLI.
         if data.startswith(b"\x04\x22\x4d\x18"):
             try:
