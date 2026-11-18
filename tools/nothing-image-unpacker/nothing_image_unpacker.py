@@ -295,6 +295,58 @@ def find_recovery_ramdisk_files(unpacked_dir: Path, image_info: str) -> list[Pat
     return sorted(selected)
 
 
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def inspect_kernel(kernel_path: Path) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "file": kernel_path.name,
+        "bytes": kernel_path.stat().st_size,
+        "sha256": sha256_file(kernel_path),
+        "magic_hex": kernel_path.read_bytes()[:16].hex(" "),
+        "status": "raw",
+    }
+    if kernel_path.stat().st_size == 0:
+        result["status"] = "empty"
+        return result
+
+    with kernel_path.open("rb") as source:
+        magic = source.read(4)
+
+    if magic in (b"\\x02\\x21\\x4c\\x18", b"\\x04\\x22\\x4d\\x18"):
+        lz4_binary = shutil.which("lz4")
+        if not lz4_binary:
+            result["status"] = "compressed_lz4_not_decoded"
+            result["note"] = "KernelはLZ4形式です。lz4コマンドがないため圧縮状態で保持しました。"
+            return result
+        output_path = kernel_path.parent / "kernel-decompressed"
+        run_checked([lz4_binary, "-d", "-f", str(kernel_path), str(output_path)])
+        if not output_path.is_file() or output_path.stat().st_size == 0:
+            raise ToolError("KernelのLZ4展開に成功しましたが、出力ファイルが空です。")
+        result.update({
+            "status": "decompressed_lz4",
+            "decompressed_file": output_path.name,
+            "decompressed_bytes": output_path.stat().st_size,
+            "decompressed_sha256": sha256_file(output_path),
+            "decompressed_magic_hex": output_path.read_bytes()[:16].hex(" "),
+        })
+        file_binary = shutil.which("file")
+        if file_binary:
+            result["file_type"] = run_checked([file_binary, "-b", str(output_path)]).stdout.strip()
+        return result
+
+    file_binary = shutil.which("file")
+    if file_binary:
+        result["file_type"] = run_checked([file_binary, "-b", str(kernel_path)]).stdout.strip()
+    return result
+
+
 def process_image(
     image_path: Path, image_root: Path, unpacker: Path, recovery_only: bool = False
 ) -> dict[str, Any]:
@@ -334,6 +386,13 @@ def process_image(
 
     for ramdisk in ramdisk_files:
         try:
+            if ramdisk.stat().st_size == 0:
+                result["ramdisks"].append({
+                    "file": str(ramdisk.relative_to(image_root.parent)),
+                    "status": "empty",
+                    "note": "Ramdiskが0バイトのため展開対象ではありません。",
+                })
+                continue
             raw = ramdisk.read_bytes()
             cpio_data, compression = decompress_ramdisk(raw)
             root_name = re.sub(r"[^A-Za-z0-9._-]+", "_", ramdisk.stem) + "_root"
@@ -352,8 +411,19 @@ def process_image(
                 "note": str(exc),
             })
 
+    kernel_path = target_dir / "kernel"
+    if kernel_path.is_file():
+        try:
+            result["kernel"] = inspect_kernel(kernel_path)
+        except Exception as exc:
+            result["kernel"] = {
+                "file": kernel_path.name,
+                "status": "inspection_failed",
+                "note": str(exc),
+            }
+
     if recovery_only:
-        keep = {target_dir / "image-info.txt", *ramdisk_files}
+        keep = {target_dir / "image-info.txt", *ramdisk_files, kernel_path}
         for entry in result["ramdisks"]:
             root_value = entry.get("root")
             if root_value:
@@ -436,14 +506,15 @@ def main() -> int:
 
     summary = {
         "tool": "Nothing Image Unpacker",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "mode": "recovery-only" if args.recovery_only else "full-image-inspection",
         "device_focus": "Nothing Phone (3a) Lite / Galaxian",
         "download": download_info,
         "image_count": len(images),
         "images": image_results,
         "important_note": (
-            "Recovery-only mode keeps the Recovery ramdisk, extracted files, image header report, and summary. "
+            "Full-image mode inspects boot.img, init_boot.img, vendor_boot.img, and other IMG files. "
+            "It extracts available ramdisks, reports the kernel, and attempts LZ4 kernel decompression. "
             "It does not recreate original C/C++ source code. No flashing is performed."
         ),
     }
