@@ -46,10 +46,26 @@ jobs:
             --label "$BUILD_LABEL" \
             --output out
 
-      - name: Upload extracted files
+      - name: Collect Recovery, ADB and USB files
+        env:
+          BUILD_LABEL: ${{ inputs.build_label }}
+        run: |
+          python tools/nothing-image-unpacker/collect_recovery_files.py \
+            --root "out/$BUILD_LABEL" \
+            --output "out/$BUILD_LABEL/recovery-investigation"
+
+      - name: Upload complete inspection
         uses: actions/upload-artifact@v4
         with:
           name: nothing-image-inspected-${{ github.run_number }}
-          path: out/
+          path: out/${{ inputs.build_label }}/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Recovery-focused files
+        uses: actions/upload-artifact@v4
+        with:
+          name: nova-recovery-investigation-${{ github.run_number }}
+          path: out/${{ inputs.build_label }}/recovery-investigation/
           if-no-files-found: error
           retention-days: 7
