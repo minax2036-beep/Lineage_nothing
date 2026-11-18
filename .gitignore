@@ -1,0 +1,7 @@
+# Local extraction output can contain large proprietary firmware images.
+out/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
