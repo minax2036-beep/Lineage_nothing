@@ -32,7 +32,7 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full
+          sudo apt-get install -y p7zip-full lz4
           python -m pip install --upgrade pip
           python -m pip install -r tools/nothing-image-unpacker/requirements.txt
 
@@ -44,6 +44,7 @@ jobs:
           python tools/nothing-image-unpacker/nothing_image_unpacker.py \
             --archive-url "$ARCHIVE_URL" \
             --label "$BUILD_LABEL" \
+            --recovery-only \
             --output out
 
       - name: Upload extracted files
