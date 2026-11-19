@@ -48,11 +48,11 @@ def main():
     wanted=["boot","init_boot","vendor_boot","recovery","vendor","odm","system","system_ext","product","vendor_dlkm","system_dlkm"]
     found=[]
     for name in wanted:
-        if re.search(r"(?m)^\\s*"+re.escape(name)+r"\\s*(?:\\(|$)",listing):
+        if re.search(r"(?m)^\s*"+re.escape(name)+r"\s*(?:\(|$)",listing):
             found.append(name)
     if not found:
         # Some tool versions print a compact comma-separated list.
-        found=[n for n in wanted if re.search(r"\\b"+re.escape(n)+r"\\b",listing)]
+        found=[n for n in wanted if re.search(r"\b"+re.escape(n)+r"\b",listing)]
     if not found: raise RuntimeError("Could not identify requested partitions from payload listing.")
     images=root/"partition-images"
     images.mkdir(exist_ok=True)
@@ -64,7 +64,7 @@ def main():
     report={"tool":"NOVA Full OTA Inspector","version":"0.1.0","label":label,"download":info,
             "partition_names_requested":found,"partition_listing":listing,"image_inventory":inventory,
             "note":"Images are extracted for offline inspection only; no device is modified."}
-    (root/"summary.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\\n",encoding="utf-8")
+    (root/"summary.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
     print(json.dumps({"output":str(root),"partitions":found,"images":len(inventory)},indent=2))
 if __name__=="__main__":
     try: main()
