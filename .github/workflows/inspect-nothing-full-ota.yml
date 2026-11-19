@@ -1,4 +1,4 @@
-name: Inspect Nothing Full OTA
+name: Inspect Nothing Recovery OTA
 
 on:
   workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
           go install github.com/ssut/payload-dumper-go@latest
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
 
-      - name: Download and extract OTA partitions
+      - name: Extract recovery-related boot partitions and report
         env:
           OTA_URL: ${{ inputs.ota_url }}
           BUILD_LABEL: ${{ inputs.build_label }}
@@ -47,10 +47,10 @@ jobs:
             --payload-dumper "$(which payload-dumper-go)" \
             --output out
 
-      - name: Upload Full OTA inspection
+      - name: Upload recovery-focused inspection
         uses: actions/upload-artifact@v4
         with:
-          name: nova-full-ota-inspection-${{ github.run_number }}
+          name: nova-recovery-ota-inspection-${{ github.run_number }}
           path: out/${{ inputs.build_label }}/
           if-no-files-found: error
           retention-days: 7
