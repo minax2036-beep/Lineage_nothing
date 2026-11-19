@@ -50,7 +50,7 @@ def partition_names(listing: str):
         if re.search(r"(?m)^\s*" + re.escape(name) + r"\s*(?:\(|$)", listing):
             found.append(name)
     if not found:
-        found = [n for n in candidates if re.search(r"\b" + re.escape(n) + r"\\b", listing)]
+        found = [n for n in candidates if re.search(r"\b" + re.escape(n) + r"\b", listing)]
     return found
 
 def inventory_ramdisk_files(images: Path, root: Path):
@@ -89,7 +89,8 @@ def inventory_ramdisk_files(images: Path, root: Path):
                 log.write("No extracted entries were produced by binwalk.\n")
     print(f"Ramdisk inventory log: {log_path}")
     print(f"Extracted file entries: {sum(len(x.get('extracted_items', [])) for x in records)}")
-    shutil.rmtree(scan_root, ignore_errors=True)\n    return records, log_path
+    shutil.rmtree(scan_root, ignore_errors=True)
+    return records, log_path
 
 def main():
     ap = argparse.ArgumentParser()
