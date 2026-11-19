@@ -46,6 +46,14 @@ jobs:
             --label "$BUILD_LABEL" \
             --output out
 
+      - name: Print complete extracted-file inventory
+        env:
+          BUILD_LABEL: ${{ inputs.build_label }}
+        run: |
+          python tools/nothing-image-unpacker/list_extracted_files.py \
+            --root "out/$BUILD_LABEL" \
+            --output "extracted-file-inventory.txt"
+
       - name: Collect Recovery, ADB and USB files
         env:
           BUILD_LABEL: ${{ inputs.build_label }}
