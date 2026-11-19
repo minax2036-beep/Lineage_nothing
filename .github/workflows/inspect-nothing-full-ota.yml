@@ -10,7 +10,7 @@ on:
       build_label:
         description: "Build label (e.g. Galaxian-B4.1-FullOTA)"
         required: true
-        default: "Galaxian-FullOTA"
+        default: "Galaxian-B4.1-260819-1839"
         type: string
 
 permissions:
@@ -24,6 +24,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Compute OTA cache key
+        id: cachekey
+        env:
+          OTA_URL: ${{ inputs.ota_url }}
+        run: |
+          echo "key=$(printf '%s' "$OTA_URL" | sha256sum | cut -c1-20)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Full OTA cache
+        uses: actions/cache@v4
+        with:
+          path: .ota-cache/full_ota.zip
+          key: full-ota-${{ steps.cachekey.outputs.key }}
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -36,7 +49,7 @@ jobs:
           go install github.com/ssut/payload-dumper-go@latest
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
 
-      - name: Extract recovery-related boot partitions and report
+      - name: Inspect OTA and extract recovery-related boot partitions
         env:
           OTA_URL: ${{ inputs.ota_url }}
           BUILD_LABEL: ${{ inputs.build_label }}
@@ -45,6 +58,7 @@ jobs:
             --url "$OTA_URL" \
             --label "$BUILD_LABEL" \
             --payload-dumper "$(which payload-dumper-go)" \
+            --cache-file ".ota-cache/full_ota.zip" \
             --output out
 
       - name: Upload recovery-focused inspection
