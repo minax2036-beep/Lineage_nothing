@@ -1,0 +1,56 @@
+name: Inspect Nothing Full OTA
+
+on:
+  workflow_dispatch:
+    inputs:
+      ota_url:
+        description: "Direct HTTPS URL to the Full OTA ZIP"
+        required: true
+        type: string
+      build_label:
+        description: "Build label (e.g. Galaxian-B4.1-FullOTA)"
+        required: true
+        default: "Galaxian-FullOTA"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.0"
+
+      - name: Install payload-dumper-go
+        run: |
+          go install github.com/ssut/payload-dumper-go@v2.1.0
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+          sudo apt-get update
+          sudo apt-get install -y xz-utils
+
+      - name: Download and extract OTA partitions
+        env:
+          OTA_URL: ${{ inputs.ota_url }}
+          BUILD_LABEL: ${{ inputs.build_label }}
+        run: |
+          python3 tools/nothing-image-unpacker/payload_ota_inspector.py \
+            --url "$OTA_URL" \
+            --label "$BUILD_LABEL" \
+            --payload-dumper "$(which payload-dumper-go)" \
+            --output out
+
+      - name: Upload Full OTA inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: nova-full-ota-inspection-${{ github.run_number }}
+          path: out/${{ inputs.build_label }}/
+          if-no-files-found: error
+          retention-days: 7
