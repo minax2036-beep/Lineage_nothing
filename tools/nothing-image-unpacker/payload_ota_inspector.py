@@ -47,7 +47,7 @@ def partition_names(listing: str):
     candidates = ["recovery", "vendor_boot", "init_boot", "boot"]
     found = []
     for name in candidates:
-        if re.search(r"(?m)^\s*" + re.escape(name) + r"\s*(?:\\(|$)", listing):
+        if re.search(r"(?m)^\s*" + re.escape(name) + r"\s*(?:\(|$)", listing):
             found.append(name)
     if not found:
         found = [n for n in candidates if re.search(r"\b" + re.escape(n) + r"\b", listing)]
