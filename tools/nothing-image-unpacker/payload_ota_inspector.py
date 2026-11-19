@@ -47,10 +47,10 @@ def partition_names(listing: str):
     candidates = ["recovery", "vendor_boot", "init_boot", "boot"]
     found = []
     for name in candidates:
-        if re.search(r"(?m)^\\s*" + re.escape(name) + r"\\s*(?:\\(|$)", listing):
+        if re.search(r"(?m)^\s*" + re.escape(name) + r"\s*(?:\\(|$)", listing):
             found.append(name)
     if not found:
-        found = [n for n in candidates if re.search(r"\\b" + re.escape(n) + r"\\b", listing)]
+        found = [n for n in candidates if re.search(r"\b" + re.escape(n) + r"\b", listing)]
     return found
 
 def main():
@@ -114,7 +114,7 @@ def main():
             "note": "Only recovery-related boot partition images and metadata are retained as artifacts. The OTA ZIP is stored separately in the Actions cache when cache-file is enabled. No device is modified."
         }
         (root / "recovery-summary.json").write_text(
-            json.dumps(report, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8"
+            json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
         print(json.dumps({"output": str(root), "partitions": found, "files": len(inventory), "ota_cache": str(ota)}, indent=2))
     finally:
