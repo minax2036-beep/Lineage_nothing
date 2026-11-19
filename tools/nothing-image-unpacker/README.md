@@ -14,6 +14,17 @@ NothingArchiveのファームウェアイメージアーカイブ（`.7z`）を�
 - `dtbo.img`や`vbmeta*.img`など、AOSP boot imageではないIMGも原本を保存して形式情報を記録
 - SHA-256と処理結果を`summary.json`に記録
 
+## 全展開ファイル一覧
+
+GitHub Actionsでは展開後、`list_extracted_files.py`を実行して全ファイル・ディレクトリの一覧をActionsログに表示します。
+
+- `[F]`: 通常ファイル（サイズも表示）
+- `[D]`: ディレクトリ
+- `[L]`: CPIO manifestから判明したシンボリックリンク（実際には作成せず、リンク先を表示）
+- `[S]`: CPIO manifestから判明した特殊ファイル（実際には作成せず、mode/sizeを表示）
+
+一覧は `extracted-file-inventory.txt` として出力フォルダにも保存され、完全解析Artifactからダウンロードできます。これにより、特定ファイルがどのIMG / ramdisk fragmentにあるか、symlinkとして定義されているかを調べやすくします。
+
 ## Recovery調査用ファイルの自動収集
 
 通常の全イメージ解析が終わると、GitHub Actionsは展開済みファイルを横断してRecovery / ADB / USB / fstab関連の候補を収集します。
@@ -98,6 +109,7 @@ out/
     │       ├── vendor_ramdisk00
     │       ├── vendor_ramdisk01
     │       └── vendor-ramdisk-by-name/
+    ├── extracted-file-inventory.txt
     └── summary.json
 ```
 
